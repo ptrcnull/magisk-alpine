@@ -1,0 +1,41 @@
+#!/data/adb/magisk/busybox ash
+set -euo standalone
+
+if [ "$(id -u)" != 0 ]; then
+	exec su -c $0
+fi
+
+if [ ! -d /data/alpine ]; then
+	mkdir /data/alpine
+	wget -O - "https://dl-cdn.alpinelinux.org/alpine/v3.17/releases/$(uname -m)/alpine-minirootfs-3.17.1-$(uname -m).tar.gz" | tar xvzf - -C /data/alpine 
+fi
+
+cd /data/alpine
+
+mounted() {
+	mount | grep -q "/data/alpine/$1"
+}
+
+if ! mounted proc; then
+	mount -t proc proc proc
+fi
+
+if ! mounted sys; then
+	mount -t sysfs sysfs sys
+fi
+
+if ! mounted tmp; then
+	mount -t tmpfs tmpfs tmp
+fi
+
+if ! mounted dev; then
+	if grep -q devtmpfs /proc/filesystems; then
+		mount -t devtmpfs devtmpfs dev
+	else
+		mount -t tmpfs tmpfs dev
+		chroot . /sbin/mdev -s
+	fi
+fi
+
+exec chroot . /bin/login -f root
+
